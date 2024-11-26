@@ -139,7 +139,11 @@ class parser
 	[[deprecated]] std::string get_usage_text() const { return ""; }
 	[[deprecated]] std::string get_description_text() const { return ""; }
 
-	virtual help_text get_help_text(const option_style &) const { return {}; }
+	virtual help_text get_help_text(const option_style &, size_t indent) const
+	{
+		(void) indent;
+		return {};
+	}
 	virtual std::string get_usage_text(const option_style &) const
 	{
 		return "";
@@ -197,7 +201,7 @@ class parser
 		printer & p, const option_style & style) const
 	{
 		p.heading("OPTIONS, ARGUMENTS:");
-		for (auto const & cols : get_help_text(style))
+		for (auto const & cols : get_help_text(style, 0))
 		{
 			p.option(cols.option, cols.description, 2);
 		}
@@ -241,7 +245,7 @@ The set of help texts for any options in the sub-parsers to this one, if any.
 
 [source]
 ----
-virtual help_text get_help_text(const option_style &) const;
+virtual help_text get_help_text(const option_style &, size_t indent) const;
 ----
 
 Collects, and returns, the set of help items for the sub-parser arguments in

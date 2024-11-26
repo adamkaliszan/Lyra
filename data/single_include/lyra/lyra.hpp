@@ -1622,7 +1622,11 @@ class parser
 	[[deprecated]] std::string get_usage_text() const { return ""; }
 	[[deprecated]] std::string get_description_text() const { return ""; }
 
-	virtual help_text get_help_text(const option_style &) const { return {}; }
+	virtual help_text get_help_text(const option_style &, size_t indent) const
+	{
+		(void) indent;
+		return {};
+	}
 	virtual std::string get_usage_text(const option_style &) const
 	{
 		return "";
@@ -1680,7 +1684,7 @@ class parser
 		printer & p, const option_style & style) const
 	{
 		p.heading("OPTIONS, ARGUMENTS:");
-		for (auto const & cols : get_help_text(style))
+		for (auto const & cols : get_help_text(style, 0))
 		{
 			p.option(cols.option, cols.description, 2);
 		}
@@ -1724,7 +1728,7 @@ The set of help texts for any options in the sub-parsers to this one, if any.
 
 [source]
 ----
-virtual help_text get_help_text(const option_style &) const;
+virtual help_text get_help_text(const option_style &, size_t indent) const;
 ----
 
 Collects, and returns, the set of help items for the sub-parser arguments in
@@ -2182,9 +2186,9 @@ class arg : public bound_parser<arg>
 		return text;
 	}
 
-	help_text get_help_text(const option_style & style) const override
+	help_text get_help_text(const option_style & style, size_t indent) const override
 	{
-		return { { get_usage_text(style), m_description } };
+		return { { std::string(indent, ' ') + get_usage_text(style), m_description } };
 	}
 
 	using parser::parse;
@@ -2360,12 +2364,12 @@ class arguments : public parser
 		return text;
 	}
 
-	help_text get_help_text(const option_style & style) const override
+	help_text get_help_text(const option_style & style, size_t indent) const override
 	{
 		help_text text;
 		for (auto const & p : parsers)
 		{
-			auto child_help = p->get_help_text(style);
+			auto child_help = p->get_help_text(style, indent + 2);
 			text.insert(text.end(), child_help.begin(), child_help.end());
 		}
 		return text;
@@ -2860,6 +2864,7 @@ struct parser_customization
 {
 	virtual std::string token_delimiters() const = 0;
 	virtual std::string option_prefix() const = 0;
+	virtual ~parser_customization() {}
 };
 
 /* tag::reference[]
@@ -3665,9 +3670,11 @@ class literal : public parser
 		return description;
 	}
 
-	help_text get_help_text(const option_style &) const override
+	help_text get_help_text(const option_style &, size_t indent) const override
 	{
-		return { { name, description } };
+		std::string name_str = std::string(indent, ' ') + "\033[1m" + name + "\033[0m";
+		std::string description_str = "\033[3m" + description + "\033[0m";
+		return { { name_str, description_str } };
 	}
 
 	using parser::parse;
@@ -3845,21 +3852,21 @@ class command : public group
 			+ parsers[1]->get_usage_text(style);
 	}
 
-	help_text get_help_text(const option_style & style) const override
+	help_text get_help_text(const option_style & style, size_t indent) const override
 	{
 		if (expanded_help_details)
 		{
 			help_text text;
 			text.push_back({ "", "" });
-			auto c = parsers[0]->get_help_text(style);
+			auto c = parsers[0]->get_help_text(style, indent + 2);
 			text.insert(text.end(), c.begin(), c.end());
 			text.push_back({ "", "" });
-			auto o = parsers[1]->get_help_text(style);
+			auto o = parsers[1]->get_help_text(style, indent + 2);
 			text.insert(text.end(), o.begin(), o.end());
 			return text;
 		}
 		else
-			return parsers[0]->get_help_text(style);
+			return parsers[0]->get_help_text(style, indent + 2);
 	}
 
 	protected:
@@ -3869,7 +3876,7 @@ class command : public group
 		printer & p, const option_style & style) const override
 	{
 		p.heading("OPTIONS, ARGUMENTS:");
-		for (auto const & cols : parsers[1]->get_help_text(style))
+		for (auto const & cols : parsers[1]->get_help_text(style, 0))
 		{
 			p.option(cols.option, cols.description, 2);
 		}
@@ -4083,12 +4090,12 @@ class opt : public bound_parser<opt>
 		return usage;
 	}
 
-	help_text get_help_text(const option_style & style) const override
+	help_text get_help_text(const option_style & style, size_t indent) const override
 	{
-		std::string text;
+		std::string text = std::string(indent, ' ');
 		for (auto const & opt_name : opt_names)
 		{
-			if (!text.empty()) text += ", ";
+			if (!text.empty() && !(text.back() == ' ')) text += ", ";
 			text += format_opt(opt_name, style);
 		}
 		if (!m_hint.empty()) ((text += " <") += m_hint) += ">";
